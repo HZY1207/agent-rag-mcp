@@ -35,8 +35,7 @@ python -m venv .venv
 # 3. 安装依赖
 pip install -r requirements.txt
 
-# 4. 准备配置（第 2 步填 LLM Key 时需要）
-Copy-Item .env.example .env
+# 4. 准备配置：项目目录已带 .env（未提交到 Git），在 LLM_API_KEY= 后填入你的 Key（见 docs/02）
 
 # 5. 启动
 python -m uvicorn app.main:app --reload --port 8000
@@ -47,7 +46,7 @@ python -m uvicorn app.main:app --reload --port 8000
 ## 路线图
 
 - [x] 第 1 步：项目初始化与最小骨架
-- [ ] 第 2 步：LLM 接入与流式对话（SSE）
+- [x] 第 2 步：LLM 接入与流式对话（SSE + Mock 模式）
 - [ ] 第 3 步：RAG 检索链路（上传→切片→向量化→检索）
 - [ ] 第 4 步：Agent 引擎（LangGraph ReAct + 工具调用）
 - [ ] 第 5 步：MCP 客户端（接入外部工具）
@@ -60,3 +59,5 @@ python -m uvicorn app.main:app --reload --port 8000
 ## 文档
 
 - [01 · 项目初始化与最小骨架](docs/01-项目初始化.md)
+- [02 · LLM 接入与 SSE 流式对话](docs/02-LLM接入与SSE流式对话.md)
+- [附 · Git 基础速查](docs/附-Git基础速查.md)

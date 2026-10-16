@@ -3,3 +3,6 @@
 fastapi==0.143.2
 uvicorn[standard]==0.54.0
 pydantic-settings==2.16.0
+
+# Step 2: LLM (OpenAI-compatible via LangChain)
+langchain-openai==1.7.2
