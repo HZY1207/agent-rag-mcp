@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     data_dir: str = "./data"              # 运行期数据目录（已 gitignore）
     qdrant_path: str = "./data/qdrant"    # Qdrant 本地模式持久化目录
 
+    # ---- 知识库 / RAG（第 3 步起使用）----
+    embed_model: str = "BAAI/bge-small-zh-v1.5"  # 本地向量模型（fastembed，支持中文）
+    hf_endpoint: str = "https://hf-mirror.com"   # HuggingFace 下载镜像（海外网络可改 https://huggingface.co）
+    kb_collection: str = "knowledge"             # Qdrant 集合名
+    kb_chunk_size: int = 500                     # 切片长度（字符）
+    kb_chunk_overlap: int = 50                   # 相邻切片重叠（字符）
+    kb_top_k: int = 3                            # 每次检索返回的切片数
+    kb_score_threshold: float = 0.43             # 相似度低于此值不注入（实测底噪 0.40 / 相关 0.46 的中间值）
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -8,7 +8,7 @@
 | 模块 | 说明 |
 |---|---|
 | Agent | 基于 LangGraph 的 ReAct 智能体：自主决定"检索 / 调工具"的步骤，流式输出思考与工具调用轨迹 |
-| RAG | 文档上传 → 解析切片 → 向量化 → 混合检索 → 引用溯源，回答标注来源 |
+| RAG | 文档上传 → 解析切片 → 向量化 → 向量检索 + 相似度过滤 → 引用溯源，回答标注来源 |
 | MCP 客户端 | 接入任意外部 MCP Server（filesystem、fetch、git…），工具即插即用 |
 | MCP 服务端 | 把知识库检索能力暴露为标准 MCP Server，Cursor / Claude Desktop 可直接调用 |
 | 会话与记忆 | 多轮对话历史持久化，上下文自动携带 |
@@ -43,11 +43,13 @@ python -m uvicorn app.main:app --reload --port 8000
 
 验证：打开 http://127.0.0.1:8000/docs 查看接口文档；访问 http://127.0.0.1:8000/api/health 应返回 `{"code":0,...}`。
 
+知识库链路自测（上传 → 检索 → 引用问答）：`python -X utf8 scripts\smoke_rag.py`（示例文件在 `samples/`）。
+
 ## 路线图
 
 - [x] 第 1 步：项目初始化与最小骨架
 - [x] 第 2 步：LLM 接入与流式对话（SSE + Mock 模式）
-- [ ] 第 3 步：RAG 检索链路（上传→切片→向量化→检索）
+- [x] 第 3 步：RAG 检索链路（上传→切片→向量化→检索，带引用回答）
 - [ ] 第 4 步：Agent 引擎（LangGraph ReAct + 工具调用）
 - [ ] 第 5 步：MCP 客户端（接入外部工具）
 - [ ] 第 6 步：MCP 服务端（知识库能力对外暴露）
@@ -60,4 +62,5 @@ python -m uvicorn app.main:app --reload --port 8000
 
 - [01 · 项目初始化与最小骨架](docs/01-项目初始化.md)
 - [02 · LLM 接入与 SSE 流式对话](docs/02-LLM接入与SSE流式对话.md)
+- [03 · RAG 检索链路](docs/03-RAG检索链路.md)
 - [附 · Git 基础速查](docs/附-Git基础速查.md)

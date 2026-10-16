@@ -3,7 +3,8 @@
 - 配置了 LLM_API_KEY：调用真实模型（OpenAI 兼容协议，DeepSeek/通义/智谱等均可）
 - 未配置：进入演示(Mock)模式，本地模拟流式输出，方便先把整条链路跑通
 
-换服务商只需要改 .env 里的：LLM_BASE_URL + LLM_MODEL
+第 3 步起：支持传入 context（知识库检索到的"参考资料"），
+有资料时切换为 RAG 系统提示词，要求模型标注引用编号 [1][2]...
 """
 import asyncio
 import logging
@@ -17,9 +18,16 @@ from app.schemas.chat import ChatMessage
 
 logger = logging.getLogger("app.llm")
 
-# 系统提示词：约束模型的角色与风格。
-# 第 3 步做 RAG 后，这里会升级为"必须基于检索到的资料回答并标注引用编号"
+# 系统提示词（无知识库资料时）
 SYSTEM_PROMPT = "你是一个耐心、严谨的智能助手，请用简洁清晰的中文回答。"
+
+# 系统提示词（有知识库资料时）：资料以 [编号] 注入，回答里也要用 [编号] 标注出处
+RAG_SYSTEM_PROMPT = (
+    "你是知识库问答助手，请严格依据「参考资料」回答用户问题：\n"
+    "1. 用 [编号] 标注引用的资料（如 [1]、[2]），编号与参考资料一一对应；\n"
+    "2. 如果参考资料不足以回答，请明确说明「知识库中没有相关内容」，再基于你自己的知识谨慎补充；\n"
+    "3. 不要编造参考资料里不存在的细节。"
+)
 
 # Mock 模式模拟"逐字输出"的速度（秒/字），仅演示用。
 # 注意：必须大于 Windows 单调时钟精度（约 0.0156s）——asyncio 会把"到期时刻在
@@ -47,13 +55,19 @@ def create_llm() -> ChatOpenAI:
     )
 
 
-def _build_messages(message: str, history: list[ChatMessage] | None) -> list[BaseMessage]:
-    """把「历史消息 + 本轮问题」组装成模型需要的消息列表。
+def _build_messages(
+    message: str, history: list[ChatMessage] | None, context: str = ""
+) -> list[BaseMessage]:
+    """把「系统提示词 + 历史消息 + 本轮问题」组装成模型需要的消息列表。
 
-    角色说明：system=系统设定 / user=用户 / assistant=模型之前的回答。
-    多轮对话就是把这些消息按顺序排好一起发过去（模型本身无记忆）。
+    context 非空时：系统提示词切换为 RAG 版本，并把资料块拼在后面。
+    多轮对话就是把历史消息按顺序排好一起发过去（模型本身无记忆）。
     """
-    messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
+    if context:
+        system = f"{RAG_SYSTEM_PROMPT}\n\n===== 参考资料 =====\n{context}\n===== 参考资料结束 ====="
+    else:
+        system = SYSTEM_PROMPT
+    messages: list[BaseMessage] = [SystemMessage(content=system)]
     for h in history or []:
         if h.role == "user":
             messages.append(HumanMessage(content=h.content))
@@ -64,7 +78,7 @@ def _build_messages(message: str, history: list[ChatMessage] | None) -> list[Bas
 
 
 async def stream_reply(
-    message: str, history: list[ChatMessage] | None = None
+    message: str, history: list[ChatMessage] | None = None, context: str = ""
 ) -> AsyncIterator[dict]:
     """流式生成回复，逐个事件产出。
 
@@ -78,7 +92,7 @@ async def stream_reply(
         return
 
     llm = create_llm()
-    messages = _build_messages(message, history)
+    messages = _build_messages(message, history, context)
     usage = None
     async for chunk in llm.astream(messages):
         text = chunk.content
