@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 环境与运行期数据
+.env
+data/
+*.sqlite3
+
+# 测试与缓存
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+.DS_Store
