@@ -20,6 +20,7 @@ from app.api.sse import sse_frame
 from app.schemas.chat import ChatRequest
 from app.schemas.common import ApiResponse
 from app.services import knowledge, llm, sessions
+from app.services.cache import semantic_cache
 
 logger = logging.getLogger("app.chat")
 
@@ -40,6 +41,11 @@ async def _retrieve(message: str, use_kb: bool) -> tuple[str, list]:
         return "", []
 
 
+def _is_cacheable(req: ChatRequest) -> bool:
+    """只有"单轮、无会话"的问题才走语义缓存：带上下文时同一句话的答案可能不同。"""
+    return req.session_id is None and not req.history
+
+
 @router.post("/chat", summary="流式对话（SSE，带知识库引用）")
 async def chat_stream(req: ChatRequest) -> StreamingResponse:
     """SSE 流式对话：连接保持不断，模型每生成一点就推送一点。"""
@@ -53,6 +59,26 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
                 history = await asyncio.to_thread(
                     sessions.prepare_session_chat, req.session_id, req.message
                 )
+            # 0.5) 语义缓存（第 9 步）：单轮问题命中缓存则直接返回，省掉 LLM 调用
+            cacheable = _is_cacheable(req) and not llm.is_mock_mode()
+            if cacheable:
+                cached = await asyncio.to_thread(semantic_cache.get, req.message)
+                if cached:
+                    if cached["citations"]:
+                        yield _sse("citations", {"items": cached["citations"]})
+                    yield _sse("delta", {"content": cached["answer"]})
+                    yield _sse(
+                        "done",
+                        {
+                            "latency_ms": round((time.perf_counter() - start) * 1000),
+                            "prompt_tokens": 0,
+                            "completion_tokens": 0,
+                            "mock": False,
+                            "cached": True,
+                            "cache_score": round(cached["score"], 4),
+                        },
+                    )
+                    return
             # 1) 检索知识库：命中资料时先推 citations 事件（前端可先渲染引用卡片）
             context, citations = await _retrieve(req.message, req.use_kb)
             if citations:
@@ -73,8 +99,14 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
                             "prompt_tokens": item.get("prompt_tokens", 0),
                             "completion_tokens": item.get("completion_tokens", 0),
                             "mock": llm.is_mock_mode(),
+                            "cached": False,
                         },
                     )
+            # 2.5) 写入语义缓存（仅单轮、非 Mock 模式）
+            if cacheable and parts:
+                await asyncio.to_thread(
+                    semantic_cache.put, req.message, "".join(parts), citations
+                )
             # 3) 会话模式：回答入库（含引用）
             if req.session_id:
                 await asyncio.to_thread(
@@ -109,6 +141,23 @@ async def chat_sync(req: ChatRequest) -> ApiResponse:
             history = await asyncio.to_thread(
                 sessions.prepare_session_chat, req.session_id, req.message
             )
+        # 语义缓存（第 9 步）：命中则跳过检索 + LLM
+        cacheable = _is_cacheable(req) and not llm.is_mock_mode()
+        if cacheable:
+            cached = await asyncio.to_thread(semantic_cache.get, req.message)
+            if cached:
+                return ApiResponse.ok(
+                    {
+                        "reply": cached["answer"],
+                        "citations": cached["citations"],
+                        "latency_ms": round((time.perf_counter() - start) * 1000),
+                        "prompt_tokens": 0,
+                        "completion_tokens": 0,
+                        "mock": False,
+                        "cached": True,
+                        "cache_score": round(cached["score"], 4),
+                    }
+                )
         context, citations = await _retrieve(req.message, req.use_kb)
         parts: list[str] = []
         usage: dict = {}
@@ -117,6 +166,10 @@ async def chat_sync(req: ChatRequest) -> ApiResponse:
                 parts.append(item["content"])
             elif item["type"] == "usage":
                 usage = item
+        if cacheable and parts:
+            await asyncio.to_thread(
+                semantic_cache.put, req.message, "".join(parts), citations
+            )
         if req.session_id:
             await asyncio.to_thread(
                 sessions.finish_session_chat, req.session_id, "".join(parts), citations
@@ -129,6 +182,7 @@ async def chat_sync(req: ChatRequest) -> ApiResponse:
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "mock": llm.is_mock_mode(),
+                "cached": False,
             }
         )
     except Exception as exc:

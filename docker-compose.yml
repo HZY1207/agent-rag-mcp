@@ -1,0 +1,45 @@
+# 一键起平台 + 向量库：docker compose up -d --build
+# 说明：
+# - 后端用 Qdrant 服务端模式（QDRANT_URL），避免单文件锁在多容器/多副本下的限制；
+# - ./data 挂到容器 /app/data（会话 SQLite、向量模型缓存都持久化）；
+# - Qdrant 数据用命名卷持久化；
+# - .env 里的 LLM_API_KEY 通过 env_file 注入（不要写进镜像）。
+
+services:
+  api:
+    build:
+      context: .
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    container_name: agent-platform-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # 覆盖 .env 里的本地路径配置：容器内统一走服务端 Qdrant + 数据卷
+      QDRANT_URL: http://qdrant:6333
+      SESSION_DB: /app/data/sessions.sqlite3
+      FASTEMBED_CACHE_PATH: /app/data/fastembed_cache
+      MCP_CONFIG_PATH: /app/mcp_servers.json
+      HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
+      HF_HUB_DISABLE_XET: "1"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - qdrant
+    restart: unless-stopped
+
+  qdrant:
+    # 生产建议把 latest 换成固定版本号，例如 qdrant/qdrant:v1.15.0
+    image: qdrant/qdrant:latest
+    container_name: agent-platform-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+volumes:
+  qdrant_data:

@@ -60,7 +60,7 @@ class Settings(BaseSettings):
 
     # ---- 限流（第 9 步起使用）----
     rate_limit_enabled: bool = True
-    rate_limit_per_minute: int = 60              # 每 IP 每分钟请求上限
+    rate_limit_per_minute: int = 120             # 每 IP 每分钟请求上限（评测脚本等批量调用时注意）
 
 
 @lru_cache

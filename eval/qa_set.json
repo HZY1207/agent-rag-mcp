@@ -1,0 +1,122 @@
+[
+  {
+    "id": "annual_leave_days",
+    "type": "kb",
+    "question": "星尘科技的年假有多少天？",
+    "evidence": ["年假", "10 天"],
+    "expected_keywords": ["10"],
+    "note": "入职第一年 10 天，上限 20 天"
+  },
+  {
+    "id": "annual_leave_apply",
+    "type": "kb",
+    "question": "年假需要提前几天申请？",
+    "evidence": ["提前 3 个工作日"],
+    "expected_keywords": ["3"],
+    "note": "需提前 3 个工作日在 OA 提交"
+  },
+  {
+    "id": "sick_leave",
+    "type": "kb",
+    "question": "请病假超过几天需要提供医院证明？",
+    "evidence": ["医院证明"],
+    "expected_keywords": ["2"],
+    "note": "连续超过 2 天"
+  },
+  {
+    "id": "overtime_meal",
+    "type": "kb",
+    "question": "加班到几点以后可以报销晚餐补贴？补贴多少？",
+    "evidence": ["晚餐补贴"],
+    "expected_keywords": ["20:00", "50"],
+    "note": "20:00 后 50 元"
+  },
+  {
+    "id": "taxi_limit",
+    "type": "kb",
+    "question": "市内公务打车单次报销上限是多少？",
+    "evidence": ["打车", "100"],
+    "expected_keywords": ["100"],
+    "note": "单次上限 100 元"
+  },
+  {
+    "id": "reimburse_cycle",
+    "type": "kb",
+    "question": "报销单每月几号前提交？什么时候打款？",
+    "evidence": ["报销周期"],
+    "expected_keywords": ["15", "月底"],
+    "note": "15 日前提交，当月月底前打款"
+  },
+  {
+    "id": "wifi_ssid",
+    "type": "kb",
+    "question": "办公 Wi-Fi 的 SSID 是什么？",
+    "evidence": ["Stardust-Office"],
+    "expected_keywords": ["Stardust-Office"],
+    "note": "SSID 为 Stardust-Office"
+  },
+  {
+    "id": "wifi_password",
+    "type": "kb",
+    "question": "办公 Wi-Fi 密码多久更换一次？",
+    "evidence": ["密码每季度"],
+    "expected_keywords": ["季度"],
+    "note": "每季度由 IT 更换"
+  },
+  {
+    "id": "vpn_account",
+    "type": "kb",
+    "question": "VPN 账号怎么申请？开通要多久？",
+    "evidence": ["VPN"],
+    "expected_keywords": ["IT", "1 个工作日"],
+    "note": "向 IT 申请，1 个工作日"
+  },
+  {
+    "id": "laptop",
+    "type": "kb",
+    "question": "笔记本电脑多久可以申请更换？",
+    "evidence": ["笔记本电脑", "3 年"],
+    "expected_keywords": ["3 年"],
+    "note": "每 3 年可申请更换"
+  },
+  {
+    "id": "birthday",
+    "type": "kb",
+    "question": "员工生日当月有什么福利？",
+    "evidence": ["生日", "200"],
+    "expected_keywords": ["200", "购物卡"],
+    "note": "200 元购物卡"
+  },
+  {
+    "id": "out_of_kb_stock",
+    "type": "refusal",
+    "question": "星尘科技的股票代码是多少？",
+    "evidence": [],
+    "expected_keywords": [],
+    "note": "知识库外，应明确拒答"
+  },
+  {
+    "id": "out_of_kb_ceo",
+    "type": "refusal",
+    "question": "星尘科技的 CEO 是谁？",
+    "evidence": [],
+    "expected_keywords": [],
+    "note": "知识库外，应明确拒答"
+  },
+  {
+    "id": "calc_expression",
+    "type": "calc",
+    "question": "帮我计算：(128 + 72) * 3 / 5 等于多少？",
+    "evidence": [],
+    "expected_keywords": ["120"],
+    "note": "应为 120"
+  },
+  {
+    "id": "calc_multi_tool",
+    "type": "calc",
+    "question": "计算 23 * 7 + 5",
+    "evidence": [],
+    "expected_keywords": ["166"],
+    "note": "应为 166"
+  }
+]

@@ -98,6 +98,11 @@ def _ensure_collection() -> QdrantClient:
     return client
 
 
+def embed_query(text: str) -> list[float]:
+    """把一段文本编码成向量（检索与语义缓存共用；返回普通 float 列表）。"""
+    return [float(x) for x in next(iter(_get_embedder().embed([text])))]
+
+
 def _decode(data: bytes) -> str:
     """尽力解码文本文件：UTF-8（含 BOM）优先，其次 GBK。"""
     for enc in ("utf-8-sig", "utf-8", "gbk"):

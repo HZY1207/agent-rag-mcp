@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.router import api_router
 from app.core.config import get_settings
+from app.core.ratelimit import RateLimitMiddleware
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +61,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 限流：每 IP 每分钟 N 次（第 9 步）——防止接口被脚本刷爆（最后 add 的 middleware 在最外层）
+app.add_middleware(RateLimitMiddleware)
 
 # 业务接口统一挂载在 /api 前缀下
 app.include_router(api_router, prefix="/api")
