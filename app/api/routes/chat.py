@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from app.api.sse import sse_frame
 from app.schemas.chat import ChatRequest
 from app.schemas.common import ApiResponse
-from app.services import knowledge, llm
+from app.services import knowledge, llm, sessions
 
 logger = logging.getLogger("app.chat")
 
@@ -47,6 +47,12 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
     async def event_source():
         start = time.perf_counter()
         try:
+            # 0) 会话模式（第 7 步）：从服务端读历史、记录本轮问题
+            history = req.history
+            if req.session_id:
+                history = await asyncio.to_thread(
+                    sessions.prepare_session_chat, req.session_id, req.message
+                )
             # 1) 检索知识库：命中资料时先推 citations 事件（前端可先渲染引用卡片）
             context, citations = await _retrieve(req.message, req.use_kb)
             if citations:
@@ -54,8 +60,10 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
             # 2) 调用模型流式生成
             if llm.is_mock_mode():
                 logger.warning("未配置 LLM_API_KEY：当前为演示(Mock)模式")
-            async for item in llm.stream_reply(req.message, req.history, context):
+            parts: list[str] = []
+            async for item in llm.stream_reply(req.message, history, context):
                 if item["type"] == "delta":
+                    parts.append(item["content"])
                     yield _sse("delta", {"content": item["content"]})
                 elif item["type"] == "usage":
                     yield _sse(
@@ -67,6 +75,11 @@ async def chat_stream(req: ChatRequest) -> StreamingResponse:
                             "mock": llm.is_mock_mode(),
                         },
                     )
+            # 3) 会话模式：回答入库（含引用）
+            if req.session_id:
+                await asyncio.to_thread(
+                    sessions.finish_session_chat, req.session_id, "".join(parts), citations
+                )
         except asyncio.CancelledError:
             # 客户端主动断开（关页面/断网）：停止生成即可，不当作错误
             logger.info("客户端提前断开连接，已停止生成")
@@ -91,14 +104,23 @@ async def chat_sync(req: ChatRequest) -> ApiResponse:
     """和 /chat 相同的能力，但等全部生成完才返回——用来对比流式的体验差异。"""
     start = time.perf_counter()
     try:
+        history = req.history
+        if req.session_id:
+            history = await asyncio.to_thread(
+                sessions.prepare_session_chat, req.session_id, req.message
+            )
         context, citations = await _retrieve(req.message, req.use_kb)
         parts: list[str] = []
         usage: dict = {}
-        async for item in llm.stream_reply(req.message, req.history, context):
+        async for item in llm.stream_reply(req.message, history, context):
             if item["type"] == "delta":
                 parts.append(item["content"])
             elif item["type"] == "usage":
                 usage = item
+        if req.session_id:
+            await asyncio.to_thread(
+                sessions.finish_session_chat, req.session_id, "".join(parts), citations
+            )
         return ApiResponse.ok(
             {
                 "reply": "".join(parts),
