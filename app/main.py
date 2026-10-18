@@ -24,6 +24,7 @@ logger = logging.getLogger("app")
 settings = get_settings()
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 @asynccontextmanager
@@ -66,6 +67,10 @@ app.include_router(api_router, prefix="/api")
 # 静态资源目录：Swagger UI 的 JS/CSS 已本地化到 app/static/（来源见 docs/01 常见问题）
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# 前端构建产物（可选）：cd frontend && npm run build 之后，访问 /app 即聊天界面
+if FRONTEND_DIST.exists():
+    app.mount("/app", StaticFiles(directory=FRONTEND_DIST, html=True), name="web")
+
 
 @app.get("/docs", include_in_schema=False)
 def custom_docs():
@@ -85,4 +90,7 @@ def custom_docs():
 
 @app.get("/", summary="根路径", tags=["meta"])
 def root():
-    return {"app": settings.app_name, "docs": "/docs", "health": "/api/health"}
+    info = {"app": settings.app_name, "docs": "/docs", "health": "/api/health"}
+    if FRONTEND_DIST.exists():
+        info["web"] = "/app"
+    return info
