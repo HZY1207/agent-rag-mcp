@@ -30,10 +30,15 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 async def lifespan(app: FastAPI):
     """应用生命周期钩子：启动前 / 关闭后各执行一次。
 
-    后续步骤会在这里初始化：向量库连接、SQLite 建表、MCP 客户端等。
+    这里做"需要常驻连接"的初始化：MCP 客户端（第 5 步）。
+    向量库/会话库是懒加载（第一次用到才初始化），不在这里做。
     """
     logger.info("启动 %s v%s (debug=%s)", settings.app_name, settings.app_version, settings.debug)
+    from app.services.mcp_client import mcp_manager
+
+    await mcp_manager.start()
     yield
+    await mcp_manager.stop()
     logger.info("服务已关闭")
 
 

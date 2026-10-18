@@ -43,6 +43,25 @@ class Settings(BaseSettings):
     kb_top_k: int = 3                            # 每次检索返回的切片数
     kb_score_threshold: float = 0.43             # 相似度低于此值不注入（实测底噪 0.40 / 相关 0.46 的中间值）
 
+    # ---- 向量库连接方式（第 9 步 Docker 部署用）----
+    qdrant_url: str = ""           # 填了就走服务端模式（如 http://qdrant:6333）；留空 = 本地文件模式
+    fastembed_cache_path: str = ""  # 向量模型缓存目录（Docker 里挂卷用）；留空 = 系统默认位置
+
+    # ---- MCP（第 5 步起使用）----
+    mcp_config_path: str = "./mcp_servers.json"  # MCP 服务器配置文件路径
+
+    # ---- 会话存储（第 7 步起使用）----
+    session_db: str = "./data/sessions.sqlite3"  # SQLite 会话数据库
+
+    # ---- 语义缓存（第 9 步起使用）----
+    semantic_cache_enabled: bool = True
+    semantic_cache_threshold: float = 0.96       # 查询向量余弦相似度超过该值视为"同一个问题"
+    semantic_cache_ttl: int = 3600               # 缓存有效期（秒）
+
+    # ---- 限流（第 9 步起使用）----
+    rate_limit_enabled: bool = True
+    rate_limit_per_minute: int = 60              # 每 IP 每分钟请求上限
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -1,0 +1,21 @@
+{
+  "servers": {
+    "demo": {
+      "command": "python",
+      "args": ["mcp_servers/demo_server.py"],
+      "enabled": true,
+      "agent_tools": true,
+      "description": "演示工具服务器（时间 + samples 文件读取）"
+    },
+    "knowledge": {
+      "command": "python",
+      "args": ["mcp_servers/knowledge_server.py"],
+      "enabled": true,
+      "agent_tools": false,
+      "description": "知识库 MCP 服务器（把平台知识库检索能力暴露为标准 MCP 工具）",
+      "env": {
+        "KNOWLEDGE_API": "http://127.0.0.1:8000"
+      }
+    }
+  }
+}

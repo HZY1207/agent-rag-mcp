@@ -4,9 +4,12 @@
 """
 from fastapi import APIRouter
 
-from app.api.routes import chat, health, knowledge
+from app.api.routes import agent, chat, health, knowledge, mcp, sessions
 
 api_router = APIRouter()
 api_router.include_router(health.router)
 api_router.include_router(chat.router)
+api_router.include_router(agent.router)
 api_router.include_router(knowledge.router)
+api_router.include_router(sessions.router)
+api_router.include_router(mcp.router)

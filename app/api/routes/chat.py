@@ -10,13 +10,13 @@ SSE 事件协议：
   event: error      data: {"message": "错误信息"}
 """
 import asyncio
-import json
 import logging
 import time
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
+from app.api.sse import sse_frame
 from app.schemas.chat import ChatRequest
 from app.schemas.common import ApiResponse
 from app.services import knowledge, llm
@@ -26,9 +26,7 @@ logger = logging.getLogger("app.chat")
 router = APIRouter(tags=["chat"])
 
 
-def _sse(event: str, data: dict) -> str:
-    """把一条事件格式化成 SSE 帧：event 行 + data 行 + 空行结尾。"""
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+_sse = sse_frame  # 帧格式统一定义在 app/api/sse.py（agent 路由共用）
 
 
 async def _retrieve(message: str, use_kb: bool) -> tuple[str, list]:

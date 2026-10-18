@@ -10,6 +10,7 @@
 import hashlib
 import logging
 import os
+import threading
 import uuid
 from dataclasses import dataclass
 from io import BytesIO
@@ -44,29 +45,43 @@ SEPARATORS = ["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""]
 # 进程内单例：
 # - Qdrant 本地模式对同一目录有文件锁，必须单例复用
 # - 向量模型加载慢（首次还要下载），也必须复用
+# - _init_lock：双检锁，防止并发首用时把模型加载两次 / 把 Qdrant 打开两次
 _embedder = None
 _client: QdrantClient | None = None
+_init_lock = threading.Lock()
 
 
 def _get_embedder():
     """加载向量模型（首次运行会自动从 HuggingFace 下载，约几十 MB）。"""
     global _embedder
     if _embedder is None:
-        from fastembed import TextEmbedding
+        with _init_lock:
+            if _embedder is None:  # 双检：拿到锁后再确认一次
+                from fastembed import TextEmbedding
 
-        logger.info("正在加载向量模型 %s（首次运行会自动下载）...", _settings.embed_model)
-        _embedder = TextEmbedding(model_name=_settings.embed_model)
-        logger.info("向量模型 %s 就绪", _settings.embed_model)
+                logger.info("正在加载向量模型 %s（首次运行会自动下载）...", _settings.embed_model)
+                kwargs = {}
+                if _settings.fastembed_cache_path:
+                    Path(_settings.fastembed_cache_path).mkdir(parents=True, exist_ok=True)
+                    kwargs["cache_dir"] = _settings.fastembed_cache_path
+                _embedder = TextEmbedding(model_name=_settings.embed_model, **kwargs)
+                logger.info("向量模型 %s 就绪", _settings.embed_model)
     return _embedder
 
 
 def _get_client() -> QdrantClient:
-    """Qdrant 本地模式客户端：数据落在 qdrant_path 目录，零服务端、零 Docker。"""
+    """Qdrant 客户端：默认本地文件模式；配置了 qdrant_url 时用服务端模式（Docker 部署）。"""
     global _client
     if _client is None:
-        Path(_settings.qdrant_path).mkdir(parents=True, exist_ok=True)
-        _client = QdrantClient(path=_settings.qdrant_path)
-        logger.info("Qdrant 本地模式已就绪：%s", _settings.qdrant_path)
+        with _init_lock:
+            if _client is None:
+                if _settings.qdrant_url:
+                    _client = QdrantClient(url=_settings.qdrant_url)
+                    logger.info("Qdrant 服务端模式已连接：%s", _settings.qdrant_url)
+                else:
+                    Path(_settings.qdrant_path).mkdir(parents=True, exist_ok=True)
+                    _client = QdrantClient(path=_settings.qdrant_path)
+                    logger.info("Qdrant 本地模式已就绪：%s", _settings.qdrant_path)
     return _client
 
 
